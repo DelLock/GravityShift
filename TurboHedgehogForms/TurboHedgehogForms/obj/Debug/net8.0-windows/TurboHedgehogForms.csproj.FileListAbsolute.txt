@@ -1,0 +1,16 @@
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.Form1.resources
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.csproj.GenerateResource.cache
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.AssemblyInfoInputs.cache
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.AssemblyInfo.cs
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.csproj.CoreCompileInputs.cache
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\bin\Debug\net8.0-windows\TurboHedgehogForms.exe
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\bin\Debug\net8.0-windows\TurboHedgehogForms.deps.json
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\bin\Debug\net8.0-windows\TurboHedgehogForms.runtimeconfig.json
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\bin\Debug\net8.0-windows\TurboHedgehogForms.dll
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\bin\Debug\net8.0-windows\TurboHedgehogForms.pdb
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.dll
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\refint\TurboHedgehogForms.dll
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.pdb
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\TurboHedgehogForms.genruntimeconfig.cache
+C:\Users\Denis\source\repos\TurboHedgehogForms\TurboHedgehogForms\obj\Debug\net8.0-windows\ref\TurboHedgehogForms.dll
