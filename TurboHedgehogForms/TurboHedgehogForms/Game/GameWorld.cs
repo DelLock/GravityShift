@@ -7,9 +7,11 @@ using TurboHedgehogForms.Physics;
 
 namespace TurboHedgehogForms.Game
 {
-    /// <summary>Хранит уровень, обновляет сущности, обрабатывает столкновения.</summary>
+    /// <summary>Хранит уровень, обновляет сущности, обрабатывает столкновения и состояния игры.</summary>
     public sealed class GameWorld
     {
+        public GameState State { get; private set; } = GameState.Title;
+
         public Player Player { get; private set; } = new Player(new Vector2(80, 200));
         public Camera2D Camera { get; } = new();
 
@@ -17,7 +19,10 @@ namespace TurboHedgehogForms.Game
         public List<Ring> Rings { get; } = new();
         public List<EnemyPatrol> Enemies { get; } = new();
 
+        public FinishFlag Finish { get; private set; } = new FinishFlag(new Vector2(2050, 396));
+
         private Vector2 _spawnPoint = new(80, 200);
+        private float _stateTimer = 0f;
 
         public void BuildDemoLevel()
         {
@@ -25,6 +30,7 @@ namespace TurboHedgehogForms.Game
             Rings.Clear();
             Enemies.Clear();
 
+            _spawnPoint = new Vector2(80, 200);
             Player = new Player(_spawnPoint);
 
             // Земля
@@ -36,7 +42,7 @@ namespace TurboHedgehogForms.Game
             Platforms.Add(new Platform(new Vector2(860, 290), new Vector2(260, 20)));
             Platforms.Add(new Platform(new Vector2(1250, 360), new Vector2(240, 20)));
 
-            // "Ступеньки" чтобы было чувство скорости
+            // "Ступеньки"
             Platforms.Add(new Platform(new Vector2(1550, 420), new Vector2(90, 20)));
             Platforms.Add(new Platform(new Vector2(1650, 400), new Vector2(90, 20)));
             Platforms.Add(new Platform(new Vector2(1750, 380), new Vector2(90, 20)));
@@ -51,16 +57,63 @@ namespace TurboHedgehogForms.Game
             // Враги
             Enemies.Add(new EnemyPatrol(new Vector2(600, 310), leftX: 520, rightX: 740));
             Enemies.Add(new EnemyPatrol(new Vector2(1350, 340), leftX: 1250, rightX: 1490));
+
+            // Финиш
+            Finish = new FinishFlag(new Vector2(2100, 396));
+        }
+
+        public void StartNewGame()
+        {
+            BuildDemoLevel();
+            State = GameState.Playing;
+            _stateTimer = 0;
+        }
+
+        public void GoToTitle()
+        {
+            State = GameState.Title;
+            _stateTimer = 0;
         }
 
         public void Update(GameTime time, InputState input)
         {
             float dt = time.DeltaTime;
+            _stateTimer += dt;
 
+            // глобальные действия
             if (input.Restart)
-                BuildDemoLevel();
+            {
+                GoToTitle();
+                return;
+            }
 
-            // обновление врагов (патруль)
+            switch (State)
+            {
+                case GameState.Title:
+                    // Enter — начать
+                    if (input.IsDown(System.Windows.Forms.Keys.Enter))
+                        StartNewGame();
+                    return;
+
+                case GameState.LevelCompleted:
+                    // небольшая пауза и назад в Title или рестарт на Enter
+                    if (input.IsDown(System.Windows.Forms.Keys.Enter))
+                        GoToTitle();
+                    return;
+
+                case GameState.GameOver:
+                    if (input.IsDown(System.Windows.Forms.Keys.Enter))
+                        GoToTitle();
+                    return;
+
+                case GameState.Playing:
+                default:
+                    break;
+            }
+
+            // ===== PLAYING =====
+
+            // враги
             foreach (var e in Enemies.Where(x => x.IsActive))
                 e.Update(dt);
 
@@ -86,7 +139,6 @@ namespace TurboHedgehogForms.Game
             {
                 if (!Player.Bounds.Intersects(enemy.Bounds)) continue;
 
-                // если игрок падает сверху — уничтожаем врага и подпрыгиваем
                 bool hitFromAbove = Player.Velocity.Y > 0 && Player.Bounds.Bottom - enemy.Bounds.Top < 14f;
                 if (hitFromAbove)
                 {
@@ -96,11 +148,23 @@ namespace TurboHedgehogForms.Game
                 }
                 else
                 {
-                    // урон
                     Player.Lives--;
+                    if (Player.Lives <= 0)
+                    {
+                        State = GameState.GameOver;
+                        return;
+                    }
+
                     Respawn();
                     break;
                 }
+            }
+
+            // конец уровня
+            if (Player.Bounds.Intersects(Finish.Bounds))
+            {
+                State = GameState.LevelCompleted;
+                return;
             }
 
             // камера
@@ -109,12 +173,6 @@ namespace TurboHedgehogForms.Game
 
         private void Respawn()
         {
-            if (Player.Lives <= 0)
-            {
-                BuildDemoLevel();
-                return;
-            }
-
             Player.Position = _spawnPoint;
             Player.Velocity = Vector2.Zero;
         }
@@ -123,18 +181,23 @@ namespace TurboHedgehogForms.Game
         {
             Player.IsOnGround = false;
 
-            // Двигаем по X
+            // X
             Player.Position.X += Player.Velocity.X * dt;
             ResolvePlatforms(axisY: false);
 
-            // Двигаем по Y
+            // Y
             Player.Position.Y += Player.Velocity.Y * dt;
             ResolvePlatforms(axisY: true);
 
-            // если упал ниже мира
+            // упал
             if (Player.Position.Y > 900)
             {
                 Player.Lives--;
+                if (Player.Lives <= 0)
+                {
+                    State = GameState.GameOver;
+                    return;
+                }
                 Respawn();
             }
         }
