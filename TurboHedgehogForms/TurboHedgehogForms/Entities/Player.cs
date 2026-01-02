@@ -1,56 +1,121 @@
+using System;
 using System.Numerics;
 
 namespace TurboHedgehogForms.Entities
 {
-    /// <summary>
-    /// »грок с ускорением/инерцией "как у соника" (упрощенно).
-    /// </summary>
     public sealed class Player : Entity
     {
         public bool IsOnGround { get; set; }
+
         public int Lives { get; set; } = 3;
         public int Score { get; set; } = 0;
 
-        // Sonic-like параметры
-        public float Accel { get; } = 1400f;
-        public float Decel { get; } = 1800f;
-        public float Friction { get; } = 2200f;
-        public float MaxRunSpeed { get; } = 420f;
-        public float JumpSpeed { get; } = 560f;
-        public float Gravity { get; } = 1800f;
+        // Sonic-like: кольца = защита
+        public int RingCount { get; set; } = 0;
+
+        // »нвиз после урона
+        public bool IsInvulnerable => _invulnLeft > 0f;
+        private float _invulnLeft = 0f;
+
+        // —мерть
+        public bool IsDead { get; private set; }
+        private float _deadTime;
+
+        // ƒвижение
+        public float Accel { get; } = 1500f;
+        public float Decel { get; } = 1900f;
+        public float Friction { get; } = 2400f;
+        public float MaxRunSpeed { get; } = 460f;
+
+        public float JumpSpeed { get; } = 580f;
+        public float Gravity { get; } = 1900f;
+
+        // –олл/спиндэш
+        public bool IsRolling { get; private set; }
+        public bool IsChargingSpinDash { get; private set; }
+        public float SpinDashCharge { get; private set; } // 0..1
 
         private bool _jumpWasDown;
+        private bool _downWasDown;
 
         public Player(Vector2 position) : base(position, new Vector2(26, 34)) { }
 
-        public void ApplyInput(float dt, bool left, bool right, bool jumpDown)
+        public void UpdateTimers(float dt)
         {
+            if (_invulnLeft > 0) _invulnLeft = MathF.Max(0, _invulnLeft - dt);
+        }
+
+        public void ApplyInput(float dt, bool left, bool right, bool down, bool jumpDown)
+        {
+            if (IsDead) return;
+
+            // spin dash logic: удерживаем DOWN на земле, прыжок "пампит" зар€д
+            bool downPressed = down && !_downWasDown;
+            bool downReleased = !down && _downWasDown;
+            _downWasDown = down;
+
+            bool jumpPressed = jumpDown && !_jumpWasDown;
+            _jumpWasDown = jumpDown;
+
+            if (IsOnGround && down)
+            {
+                // если мы почти стоим Ч можем зар€дить спиндэш
+                if (MathF.Abs(Velocity.X) < 45f)
+                {
+                    IsChargingSpinDash = true;
+                    Velocity.X = 0;
+                    IsRolling = true;
+
+                    if (jumpPressed)
+                        SpinDashCharge = MathF.Min(1f, SpinDashCharge + 0.22f);
+                }
+                else
+                {
+                    // ролл на скорости
+                    IsRolling = true;
+                }
+            }
+            else
+            {
+                // если отпустили down после зар€дки Ч выстреливаемс€
+                if (IsChargingSpinDash && downReleased)
+                {
+                    float launch = 360f + 560f * SpinDashCharge; // 360..920
+                    // направление берЄм из последнего движени€ (если стоим, то вправо)
+                    float dir = Velocity.X < 0 ? -1 : 1;
+                    Velocity.X = dir * launch;
+
+                    IsChargingSpinDash = false;
+                    SpinDashCharge = 0f;
+                }
+
+                if (!down) IsRolling = false;
+                if (!IsOnGround) IsChargingSpinDash = false;
+            }
+
+            // если зар€жаем спиндэш Ч обычный ввод по X блокируем
+            if (IsChargingSpinDash) return;
+
             float target = 0;
             if (left) target -= 1;
             if (right) target += 1;
 
             if (target != 0)
             {
-                // ускор€емс€ в направлении нажати€
                 Velocity.X += target * Accel * dt;
-                Velocity.X = Game.MathUtil.Clamp(Velocity.X, -MaxRunSpeed, MaxRunSpeed);
+                Velocity.X = Clamp(Velocity.X, -MaxRunSpeed, MaxRunSpeed);
             }
             else
             {
-                // трение: если на земле Ч сильнее
                 float fr = IsOnGround ? Friction : (Friction * 0.25f);
                 Velocity.X = MoveToward(Velocity.X, 0, fr * dt);
             }
 
-            // если мен€ем направление Ч небольша€ "декораци€" ощущением торможени€
             if (left && Velocity.X > 0) Velocity.X = MoveToward(Velocity.X, 0, Decel * dt);
             if (right && Velocity.X < 0) Velocity.X = MoveToward(Velocity.X, 0, Decel * dt);
 
-            // прыжок по нажатию (edge)
-            bool jumpPressed = jumpDown && !_jumpWasDown;
-            _jumpWasDown = jumpDown;
-
-            if (jumpPressed && IsOnGround)
+            // прыжок
+            if (jumpPressed && IsOnGround && !IsChargingSpinDash)
             {
                 Velocity.Y = -JumpSpeed;
                 IsOnGround = false;
@@ -59,14 +124,47 @@ namespace TurboHedgehogForms.Entities
 
         public void ApplyGravity(float dt)
         {
+            if (IsDead)
+            {
+                // при смерти позвол€ем гравитации т€нуть вниз (вылет за экран)
+                Velocity.Y += Gravity * dt;
+                return;
+            }
+
             Velocity.Y += Gravity * dt;
-            if (Velocity.Y > 1200) Velocity.Y = 1200;
+            if (Velocity.Y > 1300) Velocity.Y = 1300;
+        }
+
+        public void StartInvulnerability(float seconds)
+        {
+            _invulnLeft = MathF.Max(_invulnLeft, seconds);
+        }
+
+        public void DieSonicStyle()
+        {
+            if (IsDead) return;
+            IsDead = true;
+            _deadTime = 0;
+            Velocity = new Vector2(0, -650); // подпрыгнул вверх
+        }
+
+        public void UpdateDeath(float dt)
+        {
+            if (!IsDead) return;
+            _deadTime += dt;
         }
 
         private static float MoveToward(float value, float target, float maxDelta)
         {
-            if (value < target) return System.MathF.Min(value + maxDelta, target);
-            return System.MathF.Max(value - maxDelta, target);
+            if (value < target) return MathF.Min(value + maxDelta, target);
+            return MathF.Max(value - maxDelta, target);
+        }
+
+        private static float Clamp(float v, float min, float max)
+        {
+            if (v < min) return min;
+            if (v > max) return max;
+            return v;
         }
     }
 }

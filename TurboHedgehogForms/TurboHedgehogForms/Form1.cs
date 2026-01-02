@@ -21,7 +21,6 @@ namespace TurboHedgehogForms
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            _world.BuildDemoLevel();
             _time.Reset();
             gameTimer.Start();
         }
@@ -31,7 +30,7 @@ namespace TurboHedgehogForms
             _time.Step();
             _world.Update(_time, _input);
 
-            Invalidate(); // גûחמגוע Paint
+            Invalidate();
         }
 
         private void Form1_Paint(object sender, PaintEventArgs e)

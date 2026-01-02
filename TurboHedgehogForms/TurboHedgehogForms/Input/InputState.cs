@@ -3,15 +3,18 @@ using System.Windows.Forms;
 
 namespace TurboHedgehogForms.Input
 {
-    /// <summary>Хранит состояние клавиш. Подходит для WinForms без сторонних библиотек.</summary>
     public sealed class InputState
     {
         private readonly HashSet<Keys> _down = new();
 
         public bool Left => IsDown(Keys.A) || IsDown(Keys.Left);
         public bool Right => IsDown(Keys.D) || IsDown(Keys.Right);
-        public bool Jump => IsDown(Keys.Space) || IsDown(Keys.W) || IsDown(Keys.Up);
+        public bool Up => IsDown(Keys.W) || IsDown(Keys.Up);
+        public bool Down => IsDown(Keys.S) || IsDown(Keys.Down);
+
+        public bool Jump => IsDown(Keys.Space) || Up;
         public bool Restart => IsDown(Keys.R);
+        public bool Enter => IsDown(Keys.Enter);
 
         public void SetKey(Keys key, bool pressed)
         {

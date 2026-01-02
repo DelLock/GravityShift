@@ -12,31 +12,15 @@ namespace TurboHedgehogForms.Rendering
         public void Draw(Graphics g, Size clientSize, GameWorld world)
         {
             world.Camera.ViewSize = clientSize;
-
-            // фон
             g.Clear(Color.FromArgb(18, 18, 24));
 
-            // ====== ЭКРАН ЗАСТАВКИ ======
             if (world.State == GameState.Title)
             {
+                DrawCenteredText(g, clientSize, "TURBO HEDGEHOG", _titleFont, Brushes.DeepSkyBlue, -50);
+                DrawCenteredText(g, clientSize, "Enter — Start", _bigFont, Brushes.WhiteSmoke, 20);
                 DrawCenteredText(g, clientSize,
-                    "TURBO HEDGEHOG",
-                    _titleFont,
-                    Brushes.DeepSkyBlue,
-                    yOffset: -50);
-
-                DrawCenteredText(g, clientSize,
-                    "Enter — Start    R — Back to Title",
-                    _bigFont,
-                    Brushes.WhiteSmoke,
-                    yOffset: 20);
-
-                DrawCenteredText(g, clientSize,
-                    "A/D (или ←/→) — движение, Space — прыжок\nСобери кольца и добеги до флага",
-                    _hudFont,
-                    Brushes.Gainsboro,
-                    yOffset: 90);
-
+                    "A/D (←/→) — движение\nSpace — прыжок\nS/↓ + Space — заряд спиндэша, отпусти S/↓ чтобы выстрелить\nR — в меню",
+                    _hudFont, Brushes.Gainsboro, 95);
                 return;
             }
 
@@ -47,33 +31,31 @@ namespace TurboHedgehogForms.Rendering
             using (var brush = new SolidBrush(Color.FromArgb(50, 200, 120)))
             {
                 foreach (var p in world.Platforms)
-                {
-                    g.FillRectangle(brush,
-                        p.Position.X - camX,
-                        p.Position.Y - camY,
-                        p.Size.X,
-                        p.Size.Y);
-                }
+                    g.FillRectangle(brush, p.Position.X - camX, p.Position.Y - camY, p.Size.X, p.Size.Y);
             }
 
-            // финиш
+            // финиш/капсула
             using (var pole = new SolidBrush(Color.Silver))
             using (var flag = new SolidBrush(Color.Gold))
             {
                 var f = world.Finish;
-                // древко
                 g.FillRectangle(pole, f.Position.X - camX + 10, f.Position.Y - camY, 4, f.Size.Y);
-                // флаг
                 g.FillRectangle(flag, f.Position.X - camX + 14, f.Position.Y - camY + 6, 18, 12);
             }
 
-            // кольца
+            // кольца на уровне
             using (var pen = new Pen(Color.Gold, 3))
             {
                 foreach (var r in world.Rings)
                 {
                     if (!r.IsActive) continue;
                     g.DrawEllipse(pen, r.Position.X - camX, r.Position.Y - camY, r.Size.X, r.Size.Y);
+                }
+
+                foreach (var rp in world.RingParticles)
+                {
+                    if (!rp.IsActive) continue;
+                    g.DrawEllipse(pen, rp.Position.X - camX, rp.Position.Y - camY, rp.Size.X, rp.Size.Y);
                 }
             }
 
@@ -87,27 +69,62 @@ namespace TurboHedgehogForms.Rendering
                 }
             }
 
-            // игрок
-            var pl = world.Player;
-            using (var brush = new SolidBrush(Color.FromArgb(80, 160, 255)))
+            // босс
+            if (world.Boss != null && !world.Boss.Defeated)
             {
+                using var bossBrush = new SolidBrush(Color.FromArgb(200, 120, 255));
+                var b = world.Boss;
+                g.FillRectangle(bossBrush, b.Position.X - camX, b.Position.Y - camY, b.Size.X, b.Size.Y);
+
+                // HP полоска над боссом
+                float hpW = 70;
+                float hpH = 8;
+                float x = b.Position.X - camX + (b.Size.X - hpW) / 2f;
+                float y = b.Position.Y - camY - 14;
+                g.FillRectangle(Brushes.DimGray, x, y, hpW, hpH);
+                float fill = hpW * (b.Hp / 8f);
+                g.FillRectangle(Brushes.LimeGreen, x, y, fill, hpH);
+            }
+
+            // игрок (мигает при инвизе)
+            var pl = world.Player;
+
+            bool drawPlayer = true;
+            if (pl.IsInvulnerable)
+            {
+                // мигание ~ 10 раз/сек
+                // без доступа к TotalTime: сделаем от скорости X, но лучше привязать к Time.
+                // Здесь простая имитация: если invuln активен — мигаем по кадрам.
+                drawPlayer = (System.Environment.TickCount / 80) % 2 == 0;
+            }
+
+            if (drawPlayer)
+            {
+                Color c = pl.IsRolling ? Color.FromArgb(80, 255, 180) : Color.FromArgb(80, 160, 255);
+                using var brush = new SolidBrush(c);
                 g.FillRectangle(brush, pl.Position.X - camX, pl.Position.Y - camY, pl.Size.X, pl.Size.Y);
             }
 
             // HUD
-            string hud = $"Score: {pl.Score}    Lives: {pl.Lives}    Vx: {pl.Velocity.X:0}";
-            g.DrawString(hud, _hudFont, Brushes.White, 10, 10);
-            g.DrawString("R: Title", _hudFont, Brushes.WhiteSmoke, 10, 30);
+            string act = world.CurrentLevel switch
+            {
+                LevelId.Act1 => "ACT 1",
+                LevelId.Act2 => "ACT 2",
+                LevelId.Act3_Boss => "ACT 3 (BOSS)",
+                _ => "ACT ?"
+            };
 
-            // ====== ОВЕРЛЕИ (конец/гейм овер) ======
+            g.DrawString($"{act}   Score: {pl.Score}   Rings: {pl.RingCount}   Lives: {pl.Lives}",
+                _hudFont, Brushes.White, 10, 10);
+
+            if (pl.IsChargingSpinDash)
+                g.DrawString($"SpinDash: {(int)(pl.SpinDashCharge * 100)}%", _hudFont, Brushes.Gold, 10, 30);
+
+            // Оверлеи
             if (world.State == GameState.LevelCompleted)
-            {
-                DrawOverlay(g, clientSize, "LEVEL COMPLETED!", $"Score: {pl.Score}\nEnter — Back to Title");
-            }
+                DrawOverlay(g, clientSize, "YOU WIN!", "Enter — Back to Title");
             else if (world.State == GameState.GameOver)
-            {
-                DrawOverlay(g, clientSize, "GAME OVER", $"Score: {pl.Score}\nEnter — Back to Title");
-            }
+                DrawOverlay(g, clientSize, "GAME OVER", "Enter — Back to Title");
         }
 
         private static void DrawOverlay(Graphics g, Size size, string title, string subtitle)
@@ -124,7 +141,7 @@ namespace TurboHedgehogForms.Rendering
 
         private static void DrawCenteredText(Graphics g, Size size, string text, Font font, Brush brush, int yOffset)
         {
-            var rect = new RectangleF(0, size.Height / 2f + yOffset, size.Width, 200);
+            var rect = new RectangleF(0, size.Height / 2f + yOffset, size.Width, 250);
             var format = new StringFormat { Alignment = StringAlignment.Center, LineAlignment = StringAlignment.Near };
             g.DrawString(text, font, brush, rect, format);
         }
