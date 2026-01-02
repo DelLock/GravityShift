@@ -2,9 +2,20 @@ using System.Numerics;
 
 namespace TurboHedgehogForms.Entities
 {
-    /// <summary>Неподвижная платформа/земля.</summary>
+    public enum PlatformKind
+    {
+        Ground,
+        Floating
+    }
+
     public sealed class Platform : Entity
     {
-        public Platform(Vector2 position, Vector2 size) : base(position, size) { }
+        public PlatformKind Kind { get; }
+
+        public Platform(Vector2 position, Vector2 size, PlatformKind kind = PlatformKind.Ground)
+            : base(position, size)
+        {
+            Kind = kind;
+        }
     }
 }

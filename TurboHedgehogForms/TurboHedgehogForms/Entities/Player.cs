@@ -27,22 +27,39 @@ namespace TurboHedgehogForms.Entities
         public float Friction { get; } = 2400f;
         public float MaxRunSpeed { get; } = 460f;
 
-        public float JumpSpeed { get; } = 580f;
-        public float Gravity { get; } = 1900f;
+        public float JumpSpeed { get; } = 640f;   // было 580
+        public float Gravity { get; } = 1850f;
+        public bool IsHurtLocked => _hurtLockLeft > 0f;
+        private float _hurtLockLeft = 0f;
 
         // Ролл/спиндэш
-        public bool IsRolling { get; private set; }
         public bool IsChargingSpinDash { get; private set; }
-        public float SpinDashCharge { get; private set; } // 0..1
+        public bool IsRolling { get; private set; }
 
-        private bool _jumpWasDown;
-        private bool _downWasDown;
+        public float SpinDashCharge { get; private set; } = 0f;
+        private bool _downWasDown = false;
+        private bool _jumpWasDown = false;
+        private bool _downHeld = false;
+
+        private const float SpinChargeMax = 1.25f;      // 0..1.25
+        private const float SpinChargeRate = 1.85f;     // заряд/сек при "пинке"
+        private const float SpinLaunchMin = 520f;
+        private const float SpinLaunchMax = 1180f;
+
+        private const float GroundFriction = 2200f;     // обычное трение
+        private const float RollFriction = 420f;        // меньше => больше инерции
 
         public Player(Vector2 position) : base(position, new Vector2(26, 34)) { }
 
         public void UpdateTimers(float dt)
         {
             if (_invulnLeft > 0) _invulnLeft = MathF.Max(0, _invulnLeft - dt);
+            if (_hurtLockLeft > 0) _hurtLockLeft = MathF.Max(0, _hurtLockLeft - dt);
+        }
+
+        public void StartHurtLock(float seconds)
+        {
+            _hurtLockLeft = MathF.Max(_hurtLockLeft, seconds);
         }
 
         public void ApplyInput(float dt, bool left, bool right, bool down, bool jumpDown)
@@ -56,6 +73,7 @@ namespace TurboHedgehogForms.Entities
 
             bool jumpPressed = jumpDown && !_jumpWasDown;
             _jumpWasDown = jumpDown;
+            _downHeld = down;
 
             if (IsOnGround && down)
             {
@@ -73,6 +91,7 @@ namespace TurboHedgehogForms.Entities
                 {
                     // ролл на скорости
                     IsRolling = true;
+                    IsChargingSpinDash = false;
                 }
             }
             else

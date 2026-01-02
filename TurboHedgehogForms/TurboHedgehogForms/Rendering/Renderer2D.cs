@@ -8,6 +8,7 @@ namespace TurboHedgehogForms.Rendering
         private readonly Font _hudFont = new Font("Consolas", 12, FontStyle.Bold);
         private readonly Font _titleFont = new Font("Consolas", 36, FontStyle.Bold);
         private readonly Font _bigFont = new Font("Consolas", 24, FontStyle.Bold);
+        private readonly AssetStore _assets = new();
 
         public void Draw(Graphics g, Size clientSize, GameWorld world)
         {
@@ -33,7 +34,33 @@ namespace TurboHedgehogForms.Rendering
                 foreach (var p in world.Platforms)
                     g.FillRectangle(brush, p.Position.X - camX, p.Position.Y - camY, p.Size.X, p.Size.Y);
             }
+            // --- Ramps (slopes) visual: полигон + линия поверхности ---
+            using var rampFill = new SolidBrush(Color.FromArgb(90, 90, 180, 90));
+            using var rampEdge = new Pen(Color.FromArgb(220, 30, 120, 30), 2f);
 
+            foreach (var ramp in world.Ramps)
+            {
+                float x0 = ramp.Start.X;
+                float x1 = ramp.Start.X + ramp.Width;
+
+                float yBase = ramp.Start.Y;
+                float y0 = ramp.GetSurfaceY(x0);
+                float y1 = ramp.GetSurfaceY(x1);
+
+                var pts = new PointF[]
+                {
+        new PointF(x0 - camX, y0 - camY),
+        new PointF(x1 - camX, y1 - camY),
+        new PointF(x1 - camX, yBase - camY),
+        new PointF(x0 - camX, yBase - camY),
+                };
+
+                g.FillPolygon(rampFill, pts);
+                g.DrawPolygon(rampEdge, pts);
+
+                // линия поверхности (куда ступать)
+                g.DrawLine(rampEdge, x0 - camX, y0 - camY, x1 - camX, y1 - camY);
+            }
             // финиш/капсула
             using (var pole = new SolidBrush(Color.Silver))
             using (var flag = new SolidBrush(Color.Gold))
